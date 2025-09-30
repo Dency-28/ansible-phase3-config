@@ -1,0 +1,29 @@
+- name: Deploy Docker containers
+  hosts: all
+  become: yes
+  tasks:
+    - name: Pull backend image
+      docker_image:
+        name: your-backend-image
+        source: pull
+
+    - name: Run backend container
+      docker_container:
+        name: backend
+        image: your-backend-image
+        state: started
+        ports:
+          - "8080:8080"
+
+    - name: Pull frontend image
+      docker_image:
+        name: your-frontend-image
+        source: pull
+
+    - name: Run frontend container
+      docker_container:
+        name: frontend
+        image: your-frontend-image
+        state: started
+        ports:
+          - "80:80"
