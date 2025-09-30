@@ -1,0 +1,31 @@
+name: Run Ansible Playbooks
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ansible:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Ansible
+        run: |
+          sudo apt update
+          sudo apt install -y ansible
+
+      - name: Run install_dependencies playbook
+        run: ansible-playbook install_dependencies.yml -i inventory.ini --extra-vars "ansible_user=ubuntu"
+
+      - name: Run deploy_containers playbook
+        run: ansible-playbook deploy_containers.yml -i inventory.ini --extra-vars "ansible_user=ubuntu"
+
+      - name: Run configure_nginx playbook
+        run: ansible-playbook configure_nginx.yml -i inventory.ini --extra-vars "ansible_user=ubuntu"
+
+      - name: Run env_and_ssl playbook
+        run: ansible-playbook env_and_ssl.yml -i inventory.ini --extra-vars "ansible_user=ubuntu"
+
+      - name: Run rolling_update playbook
+        run: ansible-playbook rolling_update.yml -i inventory.ini --extra-vars "ansible_user=ubuntu"
