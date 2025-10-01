@@ -1,0 +1,31 @@
+- name: Deploy Docker containers
+  hosts: all
+  become: yes
+  tasks:
+    - name: Pull backend image
+      docker_image:
+        name: elsadency/java-backend:1
+        source: pull
+
+    - name: Run backend container
+      docker_container:
+        name: backend
+        image: elsadency/java-backend:1
+        state: started
+        ports:
+          - "8080:8080"
+        env:
+          SERVER_ADDRESS: "0.0.0.0"
+
+    - name: Pull frontend image
+      docker_image:
+        name: elsadency/frontend-app:latest
+        source: pull
+
+    - name: Run frontend container
+      docker_container:
+        name: frontend
+        image: elsadency/frontend-app:2
+        state: started
+        ports:
+          - "5000:80"

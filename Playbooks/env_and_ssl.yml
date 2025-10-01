@@ -1,0 +1,21 @@
+- name: Set environment variables and SSL
+  hosts: all
+  become: yes
+  tasks:
+    - name: Set environment variables
+      lineinfile:
+        path: /etc/environment
+        line: 'APP_ENV=production'
+        create: yes
+
+    - name: Copy SSL certificate
+      copy:
+        src: /etc/ssl/certs/cert.pem
+        dest: /etc/ssl/certs/cert.pem
+        remote_src: yes
+
+    - name: Copy SSL key
+      copy:
+        src: /etc/ssl/private/privkey.pem
+        dest: /etc/ssl/private/privkey.pem
+        remote_src: yes

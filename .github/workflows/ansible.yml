@@ -1,31 +1,104 @@
-name: Run Ansible Playbooks
+name: CI/CD Pipeline - Java + JS + Ansible
 
+# Trigger pipeline on push to main or PR
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  ansible:
+  build:
+    name: Build & Test Applications
     runs-on: ubuntu-latest
+
+    services:
+      docker:
+        image: docker:24.0.5
+        options: --privileged
+        ports:
+          - 5000:5000
+          - 8080:8080
+
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Ansible
+      # ------------------- Backend -------------------
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Build backend
+        working-directory: backend
+        run: ./mvnw clean install
+
+      - name: Run backend tests
+        working-directory: backend
+        run: ./mvnw test
+
+      # ------------------- Frontend -------------------
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      # ------------------- Docker Images -------------------
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build backend Docker image
         run: |
-          sudo apt update
-          sudo apt install -y ansible
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/java-backend:latest ./backend
 
-      - name: Run install_dependencies playbook
-        run: ansible-playbook install_dependencies.yml -i inventory.ini --extra-vars "ansible_user=ubuntu"
+      - name: Build frontend Docker image
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/js-frontend:latest ./frontend
 
-      - name: Run deploy_containers playbook
-        run: ansible-playbook deploy_containers.yml -i inventory.ini --extra-vars "ansible_user=ubuntu"
+      - name: Push Docker images
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/java-backend:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/js-frontend:latest
 
-      - name: Run configure_nginx playbook
-        run: ansible-playbook configure_nginx.yml -i inventory.ini --extra-vars "ansible_user=ubuntu"
+  deploy:
+    name: Deploy to EC2 via Ansible
+    runs-on: ubuntu-latest
+    needs: build
 
-      - name: Run env_and_ssl playbook
-        run: ansible-playbook env_and_ssl.yml -i inventory.ini --extra-vars "ansible_user=ubuntu"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - name: Run rolling_update playbook
-        run: ansible-playbook rolling_update.yml -i inventory.ini --extra-vars "ansible_user=ubuntu"
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
+
+      - name: Install Ansible
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible boto3
+
+      - name: Copy SSH Key
+        uses: webfactory/ssh-agent@v0.8.1
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Run Ansible Playbook
+        run: |
+          ansible-playbook -i inventory.ini playbooks/deploy_containers.yml --extra-vars "env=prod"
