@@ -44,7 +44,7 @@ jobs:
         run: terraform apply -auto-approve
         working-directory: terraform-ec2
 
-      # 7. Get EC2 Public IP (CLEAN & SAFE)
+      # 7. Get EC2 Public IP (clean)
       - name: Get EC2 Public IP
         id: ec2
         run: |
@@ -73,6 +73,6 @@ jobs:
           echo "ansible_python_interpreter=/usr/bin/python3" >> inventory.ini
           cat inventory.ini
 
-      # 11. Run Ansible Playbook
+      # 11. Run Ansible Playbook (correct path with capital P)
       - name: Run Ansible Playbook
-        run: ansible-playbook -i inventory.ini ansible-phase3-config/playbooks/deploy_containers.yml
+        run: ansible-playbook -i inventory.ini ansible-phase3-config/Playbooks/deploy_containers.yml
