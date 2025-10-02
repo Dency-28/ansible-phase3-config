@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout repo
+      # 1. Checkout repository
       - name: Checkout code
         uses: actions/checkout@v3
 
@@ -21,7 +21,7 @@ jobs:
         with:
           terraform_version: 1.6.6
 
-      # 3. Configure AWS Credentials
+      # 3. Configure AWS credentials
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -44,27 +44,27 @@ jobs:
         run: terraform apply -auto-approve
         working-directory: terraform-ec2
 
-      # 7. Get EC2 Public IP (CLEAN using JSON)
+      # 7. Get EC2 Public IP (CLEAN & SAFE)
       - name: Get EC2 Public IP
         id: ec2
         run: |
-          ip=$(terraform output -json ec2_public_ip | jq -r '.')
+          ip=$(terraform output -raw ec2_public_ip | tr -d '[:space:]')
           echo "EC2_IP=$ip" >> $GITHUB_ENV
           echo "Public IP is $ip"
         working-directory: terraform-ec2
 
       # 8. Setup SSH Key
-      - name: Setup SSH key
+      - name: Setup SSH Key
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deployer.pem
           chmod 600 ~/.ssh/deployer.pem
 
-      # 9. Install Ansible and dependencies
-      - name: Install Ansible and jq
-        run: sudo apt-get update && sudo apt-get install -y ansible jq
+      # 9. Install Ansible
+      - name: Install Ansible
+        run: sudo apt-get update && sudo apt-get install -y ansible
 
-      # 10. Generate Ansible Inventory
+      # 10. Generate dynamic Ansible inventory
       - name: Generate Ansible Inventory
         run: |
           echo "[all]" > inventory.ini
