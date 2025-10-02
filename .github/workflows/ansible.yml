@@ -11,60 +11,60 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1 - Checkout repo
+      # 1. Checkout repo
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2 - Setup Terraform
+      # 2. Setup Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.6.6
 
-      # Step 3 - Configure AWS Credentials
+      # 3. Configure AWS Credentials
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1   # change if different
+          aws-region: us-east-1
 
-      # Step 4 - Terraform Init
+      # 4. Terraform Init
       - name: Terraform Init
         run: terraform init
         working-directory: terraform-ec2
 
-      # Step 5 - Terraform Plan
+      # 5. Terraform Plan
       - name: Terraform Plan
         run: terraform plan
         working-directory: terraform-ec2
 
-      # Step 6 - Terraform Apply
+      # 6. Terraform Apply
       - name: Terraform Apply
         run: terraform apply -auto-approve
         working-directory: terraform-ec2
 
-      # Step 7 - Get EC2 Public IP (SAFE EXPORT)
+      # 7. Get EC2 Public IP (CLEAN using JSON)
       - name: Get EC2 Public IP
         id: ec2
         run: |
-          ip=$(terraform output -raw ec2_public_ip 2>/dev/null | tr -d '\r\n')
+          ip=$(terraform output -json ec2_public_ip | jq -r '.')
           echo "EC2_IP=$ip" >> $GITHUB_ENV
           echo "Public IP is $ip"
         working-directory: terraform-ec2
 
-      # Step 8 - Setup SSH Key
+      # 8. Setup SSH Key
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deployer.pem
           chmod 600 ~/.ssh/deployer.pem
 
-      # Step 9 - Install Ansible
-      - name: Install Ansible
-        run: sudo apt-get update && sudo apt-get install -y ansible
+      # 9. Install Ansible and dependencies
+      - name: Install Ansible and jq
+        run: sudo apt-get update && sudo apt-get install -y ansible jq
 
-      # Step 10 - Generate Ansible Inventory
+      # 10. Generate Ansible Inventory
       - name: Generate Ansible Inventory
         run: |
           echo "[all]" > inventory.ini
@@ -73,6 +73,6 @@ jobs:
           echo "ansible_python_interpreter=/usr/bin/python3" >> inventory.ini
           cat inventory.ini
 
-      # Step 11 - Run Ansible Playbook
+      # 11. Run Ansible Playbook
       - name: Run Ansible Playbook
-        run: ansible-playbook -i inventory.ini playbooks/deploy_containers.yml
+        run: ansible-playbook -i inventory.ini ansible-phase3-config/playbooks/deploy_containers.yml
