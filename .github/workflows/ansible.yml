@@ -75,4 +75,5 @@ jobs:
 
       # 11. Run Ansible Playbook (correct path with capital P)
       - name: Run Ansible Playbook
-        run: ansible-playbook -i inventory.ini ansible-phase3-config/Playbooks/deploy_containers.yml
+        run: ansible-playbook -i inventory.ini Playbooks/deploy_containers.yml
+
