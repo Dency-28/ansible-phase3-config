@@ -44,11 +44,16 @@ jobs:
         run: terraform apply -auto-approve
         working-directory: terraform-ec2
 
-      # 7. Get EC2 Public IP (clean)
+      # 7. Get EC2 Public IP (safe)
       - name: Get EC2 Public IP
         id: ec2
         run: |
+          # Get only the raw IP, remove any whitespace
           ip=$(terraform output -raw ec2_public_ip | tr -d '[:space:]')
+          if [ -z "$ip" ]; then
+            echo "Error: EC2 public IP not found!"
+            exit 1
+          fi
           echo "EC2_IP=$ip" >> $GITHUB_ENV
           echo "Public IP is $ip"
         working-directory: terraform-ec2
@@ -73,7 +78,6 @@ jobs:
           echo "ansible_python_interpreter=/usr/bin/python3" >> inventory.ini
           cat inventory.ini
 
-      # 11. Run Ansible Playbook (correct path with capital P)
+      # 11. Run Ansible Playbook (correct path)
       - name: Run Ansible Playbook
         run: ansible-playbook -i inventory.ini Playbooks/deploy_containers.yml
-
