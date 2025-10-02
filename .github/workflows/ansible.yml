@@ -44,11 +44,11 @@ jobs:
         run: terraform apply -auto-approve
         working-directory: terraform-ec2
 
-      # 7. Get EC2 Public IP dynamically
+      # 7. Get EC2 Public IP dynamically (clean up whitespace and carriage return)
       - name: Get EC2 Public IP
         id: ec2
         run: |
-          ip=$(terraform output -raw ec2_public_ip | tr -d '[:space:]')
+          ip=$(terraform output -raw ec2_public_ip | tr -d '[:space:]' | tr -d '\r')
           if [ -z "$ip" ]; then
             echo "Error: EC2 public IP not found!"
             exit 1
@@ -60,9 +60,9 @@ jobs:
       # 8. Setup SSH Key
       - name: Setup SSH Key
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deployer.pem
-          chmod 600 ~/.ssh/deployer.pem
+          mkdir -p $HOME/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > $HOME/.ssh/deployer.pem
+          chmod 600 $HOME/.ssh/deployer.pem
 
       # 9. Install Ansible
       - name: Install Ansible
@@ -72,7 +72,7 @@ jobs:
       - name: Generate Ansible Inventory
         run: |
           echo "[all]" > inventory.ini
-          echo "ec2-instance ansible_host=${EC2_IP} ansible_user=ec2-user ansible_ssh_private_key_file=~/.ssh/deployer.pem" >> inventory.ini
+          echo "ec2-instance ansible_host=$EC2_IP ansible_user=ec2-user ansible_ssh_private_key_file=$HOME/.ssh/deployer.pem" >> inventory.ini
           echo "[all:vars]" >> inventory.ini
           echo "ansible_python_interpreter=/usr/bin/python3" >> inventory.ini
           cat inventory.ini
