@@ -49,27 +49,30 @@ jobs:
         run: terraform apply -auto-approve
         working-directory: terraform-ec2
 
-      # Step 8 - Get EC2 Public IP
-      - name: Get EC2 Public IP from Terraform
+      # Step 8 - Get EC2 Public IP (CLEAN EXPORT)
+      - name: Get EC2 Public IP
         id: ec2
         run: |
           ip=$(terraform output -raw ec2_public_ip)
           echo "EC2_IP=$ip" >> $GITHUB_ENV
-          echo "Public IP is $ip"
         working-directory: terraform-ec2
 
-      # Step 9 - Setup SSH Key
+      # Step 9 - Debug (print the IP to logs)
+      - name: Show EC2 IP
+        run: echo "Public IP is ${{ env.EC2_IP }}"
+
+      # Step 10 - Setup SSH Key
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deployer.pem
           chmod 600 ~/.ssh/deployer.pem
 
-      # Step 10 - Install Ansible
+      # Step 11 - Install Ansible
       - name: Install Ansible
         run: sudo apt-get update && sudo apt-get install -y ansible
 
-      # Step 11 - Generate Ansible Inventory
+      # Step 12 - Generate Ansible Inventory
       - name: Generate Ansible Inventory
         run: |
           echo "[all]" > inventory.ini
@@ -78,6 +81,6 @@ jobs:
           echo "ansible_python_interpreter=/usr/bin/python3" >> inventory.ini
           cat inventory.ini
 
-      # Step 12 - Run Ansible Playbook
+      # Step 13 - Run Ansible Playbook
       - name: Run Ansible Playbook
         run: ansible-playbook -i inventory.ini playbooks/deploy_containers.yml
