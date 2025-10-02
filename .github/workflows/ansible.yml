@@ -44,17 +44,18 @@ jobs:
         run: terraform apply -auto-approve
         working-directory: terraform-ec2
 
-      # 7. Get EC2 Public IP dynamically (clean up whitespace and carriage return)
+      # 7. Get EC2 Public IP
       - name: Get EC2 Public IP
         id: ec2
         run: |
-          ip=$(terraform output -raw ec2_public_ip | tr -d '[:space:]' | tr -d '\r')
-          if [ -z "$ip" ]; then
+          # Use terraform output -raw to get clean IP only
+          IP=$(terraform output -raw ec2_public_ip | tr -d '\r\n')
+          if [ -z "$IP" ]; then
             echo "Error: EC2 public IP not found!"
             exit 1
           fi
-          echo "EC2_IP=$ip" >> $GITHUB_ENV
-          echo "Public IP is $ip"
+          echo "EC2_IP=$IP" >> $GITHUB_ENV
+          echo "Public IP is $IP"
         working-directory: terraform-ec2
 
       # 8. Setup SSH Key
