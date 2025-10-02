@@ -27,23 +27,27 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1   # change region if needed
+          aws-region: us-east-1   # change if your region is different
 
       # Step 4 - Terraform Init
       - name: Terraform Init
         run: terraform init
+        working-directory: terraform-ec2
 
       # Step 5 - Terraform Validate
       - name: Terraform Validate
         run: terraform validate
+        working-directory: terraform-ec2
 
       # Step 6 - Terraform Plan
       - name: Terraform Plan
         run: terraform plan
+        working-directory: terraform-ec2
 
       # Step 7 - Terraform Apply
       - name: Terraform Apply
         run: terraform apply -auto-approve
+        working-directory: terraform-ec2
 
       # Step 8 - Get EC2 Public IP
       - name: Get EC2 Public IP from Terraform
@@ -52,6 +56,7 @@ jobs:
           ip=$(terraform output -raw ec2_public_ip)
           echo "EC2_IP=$ip" >> $GITHUB_ENV
           echo "Public IP is $ip"
+        working-directory: terraform-ec2
 
       # Step 9 - Setup SSH Key
       - name: Setup SSH key
