@@ -22,39 +22,28 @@ jobs:
           token: ${{ secrets.GH_TOKEN }}
           path: phase1
 
-      # 3. Install Terraform
-      - name: Install Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.5.7   # stable version matching your pipeline
-
-      # 4. Install Ansible
+      # 3. Install Ansible
       - name: Install Ansible
         run: sudo apt-get update && sudo apt-get install -y ansible
 
-      # 5. Setup SSH Key
+      # 4. Setup SSH Key
       - name: Setup SSH Key
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-      # 6. Disable SSH Host Key Checking
+      # 5. Disable SSH Host Key Checking
       - name: Disable Host Key Checking
         run: |
           echo "Host *" > ~/.ssh/config
           echo "    StrictHostKeyChecking no" >> ~/.ssh/config
           chmod 600 ~/.ssh/config
 
-      # 7. Initialize Terraform & Fetch EC2 Public IP
-      - name: Terraform Init & Apply
-        run: |
-          terraform -chdir=phase1/terraform_infra init
-          terraform -chdir=phase1/terraform_infra apply -auto-approve
-
+      # 6. Get EC2 Public IP from Terraform output file
       - name: Get EC2 Public IP
         id: ec2
         run: |
-          IP=$(terraform -chdir=phase1/terraform_infra output -raw ec2_public_ip)
+          IP=$(terraform -chdir=phase1/terraform_infra output -raw ec2_public_ip 2>/dev/null || echo "")
           if [ -z "$IP" ]; then
             echo "Error: EC2 public IP not found!"
             exit 1
@@ -62,7 +51,7 @@ jobs:
           echo "EC2_IP=$IP" >> $GITHUB_ENV
           echo "Public IP is $IP"
 
-      # 8. Generate dynamic Ansible inventory
+      # 7. Generate dynamic Ansible inventory
       - name: Generate Ansible Inventory
         run: |
           echo "[all]" > inventory.ini
@@ -71,6 +60,6 @@ jobs:
           echo "ansible_python_interpreter=/usr/bin/python3" >> inventory.ini
           cat inventory.ini
 
-      # 9. Run Ansible Playbook (Docker setup will check before running)
+      # 8. Run Ansible Playbook
       - name: Run Ansible Playbook
         run: ansible-playbook -i inventory.ini phase3/Playbooks/deploy_containers.yml
