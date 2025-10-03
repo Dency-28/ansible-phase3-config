@@ -1,77 +1,52 @@
----
 - name: Deploy Docker containers on EC2
   hosts: all
-  become: yes
-  vars:
-    frontend_image: "elsadency/frontend-app:2"
-    backend_image: "elsadency/java-backend:1"
-    frontend_port: 5000
-    backend_port: 8080
+  become: true
 
   tasks:
-    - name: Update all packages
-      ansible.builtin.yum:
-        name: "*"
-        state: latest
+    - name: Check if Docker is installed
+      command: which docker
+      register: docker_check
+      ignore_errors: true
 
-    - name: Install required packages
-      ansible.builtin.yum:
-        name:
-          - yum-utils
-          - device-mapper-persistent-data
-          - lvm2
-        state: present
+    - name: Install Docker (only if not installed)
+      block:
+        - name: Update packages
+          yum:
+            name: "*"
+            state: latest
 
-    - name: Add Docker repository
-      ansible.builtin.yum_repository:
-        name: docker
-        description: Docker Repository
-        baseurl: https://download.docker.com/linux/centos/7/x86_64/stable/
-        gpgcheck: yes
-        gpgkey: https://download.docker.com/linux/centos/gpg
-        state: present
+        - name: Install Docker
+          yum:
+            name: docker
+            state: present
 
-    - name: Install Docker
-      ansible.builtin.yum:
-        name: docker-ce
-        state: present
+        - name: Enable and start Docker
+          service:
+            name: docker
+            state: started
+            enabled: yes
 
-    - name: Start Docker service
-      ansible.builtin.systemd:
-        name: docker
-        state: started
-        enabled: yes
-
-    - name: Add ec2-user to docker group
-      ansible.builtin.user:
-        name: ec2-user
-        groups: docker
-        append: yes
-
-    - name: Pull backend Docker image
-      ansible.builtin.docker_image:
-        name: "{{ backend_image }}"
-        source: pull
-
-    - name: Pull frontend Docker image
-      ansible.builtin.docker_image:
-        name: "{{ frontend_image }}"
-        source: pull
+        - name: Add ec2-user to Docker group
+          user:
+            name: ec2-user
+            groups: docker
+            append: yes
+      when: docker_check.rc != 0
 
     - name: Run backend container
-      ansible.builtin.docker_container:
-        name: backend-app
-        image: "{{ backend_image }}"
+      docker_container:
+        name: backend
+        image: elsadency/java-backend:1
         state: started
         restart_policy: always
-        ports:
-          - "{{ backend_port }}:8080"
+        published_ports:
+          - "8080:8080"
 
     - name: Run frontend container
-      ansible.builtin.docker_container:
-        name: frontend-app
-        image: "{{ frontend_image }}"
+      docker_container:
+        name: frontend
+        image: elsadency/frontend-app:2
         state: started
         restart_policy: always
-        ports:
-          - "{{ frontend_port }}:80"
+        published_ports:
+          - "5000:80"
