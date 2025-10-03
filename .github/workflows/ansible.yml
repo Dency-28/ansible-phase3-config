@@ -1,4 +1,4 @@
-name: Terraform-Ansible-Deploy
+name: Ansible-Deploy
 
 on:
   push:
@@ -15,13 +15,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # 2. Setup Terraform
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.6.6
-
-      # 3. Configure AWS credentials
+      # 2. Configure AWS credentials
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -29,55 +23,34 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      # 4. Terraform Init
-      - name: Terraform Init
-        run: terraform init
-        working-directory: terraform-ec2
-
-      # 5. Terraform Plan
-      - name: Terraform Plan
-        run: terraform plan
-        working-directory: terraform-ec2
-
-      # 6. Terraform Apply
-      - name: Terraform Apply
-        run: terraform apply -auto-approve
-        working-directory: terraform-ec2
-
-      # 7. Get EC2 Public IP
-      - name: Get EC2 Public IP
-        id: ec2
-        run: |
-          # Use terraform output -raw to get clean IP only
-          IP=$(terraform output -raw ec2_public_ip | tr -d '\r\n')
-          if [ -z "$IP" ]; then
-            echo "Error: EC2 public IP not found!"
-            exit 1
-          fi
-          echo "EC2_IP=$IP" >> $GITHUB_ENV
-          echo "Public IP is $IP"
-        working-directory: terraform-ec2
-
-      # 8. Setup SSH Key
+      # 3. Setup SSH Key
       - name: Setup SSH Key
         run: |
           mkdir -p $HOME/.ssh
           echo "${{ secrets.EC2_SSH_KEY }}" > $HOME/.ssh/deployer.pem
           chmod 600 $HOME/.ssh/deployer.pem
 
-      # 9. Install Ansible
+      # 4. Install Ansible
       - name: Install Ansible
         run: sudo apt-get update && sudo apt-get install -y ansible
 
-      # 10. Generate dynamic Ansible inventory
-      - name: Generate Ansible Inventory
+      # 5. Generate dynamic Ansible inventory from AWS
+      - name: Generate Dynamic Inventory
         run: |
+          INSTANCE_IP=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=Tf-Demo-EC2" \
+            --query "Reservations[0].Instances[0].PublicIpAddress" \
+            --output text)
+          if [ -z "$INSTANCE_IP" ]; then
+            echo "Error: Could not fetch EC2 public IP"
+            exit 1
+          fi
           echo "[all]" > inventory.ini
-          echo "ec2-instance ansible_host=$EC2_IP ansible_user=ec2-user ansible_ssh_private_key_file=$HOME/.ssh/deployer.pem" >> inventory.ini
+          echo "ec2-instance ansible_host=$INSTANCE_IP ansible_user=ec2-user ansible_ssh_private_key_file=$HOME/.ssh/deployer.pem" >> inventory.ini
           echo "[all:vars]" >> inventory.ini
           echo "ansible_python_interpreter=/usr/bin/python3" >> inventory.ini
           cat inventory.ini
 
-      # 11. Run Ansible Playbook
+      # 6. Run Ansible Playbook
       - name: Run Ansible Playbook
         run: ansible-playbook -i inventory.ini Playbooks/deploy_containers.yml
