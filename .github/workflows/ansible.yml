@@ -8,11 +8,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Checkout Phase 3 repo (Ansible + Playbooks)
       - name: Checkout Phase 3 repo
         uses: actions/checkout@v3
         with:
           path: phase3
 
+      # 2. Checkout Phase 1 repo (Terraform infra)
       - name: Checkout Phase 1 repo
         uses: actions/checkout@v3
         with:
@@ -20,30 +22,35 @@ jobs:
           token: ${{ secrets.GH_TOKEN }}
           path: phase1
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
+      # 3. Install Terraform
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v2
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          terraform_version: 1.6.7
 
+      # 4. Install Ansible
+      - name: Install Ansible
+        run: sudo apt-get update && sudo apt-get install -y ansible
+
+      # 5. Setup SSH Key
       - name: Setup SSH Key
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
+      # 6. Disable Host Key Checking
       - name: Disable Host Key Checking
         run: |
           echo "Host *" > ~/.ssh/config
           echo "    StrictHostKeyChecking no" >> ~/.ssh/config
           chmod 600 ~/.ssh/config
 
-      - name: Install Ansible
-        run: sudo apt-get update && sudo apt-get install -y ansible
-
+      # 7. Fetch EC2 Public IP dynamically from Terraform output
       - name: Get EC2 Public IP
         id: ec2
         run: |
+          terraform -chdir=phase1/terraform_infra init
+          terraform -chdir=phase1/terraform_infra apply -auto-approve
           IP=$(terraform -chdir=phase1/terraform_infra output -raw ec2_public_ip)
           if [ -z "$IP" ]; then
             echo "Error: EC2 public IP not found!"
@@ -52,13 +59,15 @@ jobs:
           echo "EC2_IP=$IP" >> $GITHUB_ENV
           echo "Public IP is $IP"
 
+      # 8. Generate dynamic Ansible inventory
       - name: Generate Ansible Inventory
         run: |
           echo "[all]" > inventory.ini
-          echo "ec2-instance ansible_host=$EC2_IP ansible_user=ec2-user" >> inventory.ini
+          echo "ec2-instance ansible_host=$EC2_IP ansible_user=ec2-user ansible_ssh_private_key_file=${{ secrets.EC2_SSH_KEY }}" >> inventory.ini
           echo "[all:vars]" >> inventory.ini
           echo "ansible_python_interpreter=/usr/bin/python3" >> inventory.ini
           cat inventory.ini
 
+      # 9. Run Ansible Playbook
       - name: Run Ansible Playbook
         run: ansible-playbook -i inventory.ini phase3/Playbooks/deploy_containers.yml
