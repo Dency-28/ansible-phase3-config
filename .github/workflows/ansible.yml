@@ -30,27 +30,30 @@ jobs:
           echo "${{ secrets.EC2_SSH_KEY }}" > $HOME/.ssh/deployer.pem
           chmod 600 $HOME/.ssh/deployer.pem
 
-      # 4. Install Ansible
+      # 4. Install Ansible only
       - name: Install Ansible
         run: sudo apt-get update && sudo apt-get install -y ansible
 
-      # 5. Generate dynamic Ansible inventory from AWS
-      - name: Generate Dynamic Inventory
+      # 5. Fetch live EC2 Public IP dynamically
+      - name: Get EC2 Public IP
+        id: ec2
         run: |
-          INSTANCE_IP=$(aws ec2 describe-instances \
+          EC2_IP=$(aws ec2 describe-instances \
             --filters "Name=tag:Name,Values=Tf-Demo-EC2" \
             --query "Reservations[0].Instances[0].PublicIpAddress" \
             --output text)
-          if [ -z "$INSTANCE_IP" ]; then
-            echo "Error: Could not fetch EC2 public IP"
-            exit 1
-          fi
+          echo "EC2_IP=$EC2_IP" >> $GITHUB_ENV
+          echo "EC2 Public IP: $EC2_IP"
+
+      # 6. Generate dynamic Ansible inventory
+      - name: Generate Ansible Inventory
+        run: |
           echo "[all]" > inventory.ini
-          echo "ec2-instance ansible_host=$INSTANCE_IP ansible_user=ec2-user ansible_ssh_private_key_file=$HOME/.ssh/deployer.pem" >> inventory.ini
+          echo "ec2-instance ansible_host=$EC2_IP ansible_user=ec2-user ansible_ssh_private_key_file=$HOME/.ssh/deployer.pem ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> inventory.ini
           echo "[all:vars]" >> inventory.ini
           echo "ansible_python_interpreter=/usr/bin/python3" >> inventory.ini
           cat inventory.ini
 
-      # 6. Run Ansible Playbook
+      # 7. Run Ansible Playbook
       - name: Run Ansible Playbook
         run: ansible-playbook -i inventory.ini Playbooks/deploy_containers.yml
