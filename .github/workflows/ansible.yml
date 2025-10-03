@@ -39,11 +39,13 @@ jobs:
           echo "    StrictHostKeyChecking no" >> ~/.ssh/config
           chmod 600 ~/.ssh/config
 
+    
       # 6. Get EC2 Public IP from AWS CLI
       - name: Get EC2 Public IP
         id: ec2
         run: |
           IP=$(aws ec2 describe-instances \
+            --region us-east-1 \
             --filters "Name=tag:Name,Values=Tf-Demo-EC2" \
             --query "Reservations[0].Instances[0].PublicIpAddress" \
             --output text)
