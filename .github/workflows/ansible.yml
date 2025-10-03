@@ -39,12 +39,15 @@ jobs:
           echo "    StrictHostKeyChecking no" >> ~/.ssh/config
           chmod 600 ~/.ssh/config
 
-      # 6. Get EC2 Public IP from Terraform output file
+      # 6. Get EC2 Public IP from AWS CLI
       - name: Get EC2 Public IP
         id: ec2
         run: |
-          IP=$(terraform -chdir=phase1/terraform_infra output -raw ec2_public_ip 2>/dev/null || echo "")
-          if [ -z "$IP" ]; then
+          IP=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=Tf-Demo-EC2" \
+            --query "Reservations[0].Instances[0].PublicIpAddress" \
+            --output text)
+          if [ -z "$IP" ] || [ "$IP" = "None" ]; then
             echo "Error: EC2 public IP not found!"
             exit 1
           fi
