@@ -30,35 +30,19 @@ jobs:
       - name: Setup SSH Key
         uses: webfactory/ssh-agent@v0.9.0
         with:
-          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+          ssh-private-key: ${{ secrets.DEPLOYER_NEW }}
 
-      - name: Disable Host Key Checking
-        run: |
-          echo "Host *" > ~/.ssh/config
-          echo "    StrictHostKeyChecking no" >> ~/.ssh/config
-          chmod 600 ~/.ssh/config
-
+ # 3️⃣ Install Ansible
       - name: Install Ansible
-        run: sudo apt-get update && sudo apt-get install -y ansible
-
-      - name: Get EC2 Public IP
-        id: ec2
         run: |
-          IP=$(terraform -chdir=phase1/terraform_infra output -raw ec2_public_ip)
-          if [ -z "$IP" ]; then
-            echo "Error: EC2 public IP not found!"
-            exit 1
-          fi
-          echo "EC2_IP=$IP" >> $GITHUB_ENV
-          echo "Public IP is $IP"
-
-      - name: Generate Ansible Inventory
+          sudo apt update
+          sudo apt install -y ansible
+ 
+      - name: Run Playbooks
         run: |
-          echo "[all]" > inventory.ini
-          echo "ec2-instance ansible_host=$EC2_IP ansible_user=ec2-user" >> inventory.ini
-          echo "[all:vars]" >> inventory.ini
-          echo "ansible_python_interpreter=/usr/bin/python3" >> inventory.ini
-          cat inventory.ini
-
-      - name: Run Ansible Playbook
-        run: ansible-playbook -i inventory.ini phase3/Playbooks/deploy_containers.yml
+          ansible-playbook Playbooks/configure_ngnix.yml -i inventory.ini 
+          ansible-playbook Playbooks/deploy_containers.yml -i inventory.ini 
+          ansible-playbook Playbooks/env_and_ssl.yml -i inventory.ini 
+          ansible-playbook Playbooks/install_dependencies.yml -i inventory.ini
+          ansible-playbook Playbooks/rolling_update.yml -i inventory.ini 
+ 
