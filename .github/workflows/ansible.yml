@@ -2,43 +2,54 @@ name: Deploy Fullstack App with Ansible
 
 on:
   workflow_dispatch:
+  repository_dispatch:
+    types: [trigger-ansible]
 
 jobs:
   ansible-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout code
+      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Start SSH agent and add key from secret
-      - name: Setup SSH Agent
+      # 2️⃣ Setup SSH key from GitHub Secrets
+      - name: Setup SSH key
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.DEPLOYER_NEW }}
 
-      # 3️⃣ Install Ansible
+      # 3️⃣ Disable strict host key checking
+      - name: Disable host key checking
+        run: |
+          mkdir -p ~/.ssh
+          echo -e "Host *\n    StrictHostKeyChecking no\n" > ~/.ssh/config
+          chmod 600 ~/.ssh/config
+
+      # 4️⃣ Install Ansible
       - name: Install Ansible
         run: |
           sudo apt update -y
           sudo apt install -y ansible
 
-      # 4️⃣ Debug: List SSH keys in agent
-      - name: List SSH keys in agent
-        run: |
-          ssh-add -l
+      # 5️⃣ Update inventory with Terraform output (dynamic IP)
+      - name: Update Ansible inventory
+        run: /mnt/c/Users/KDency/ansible-phase3-config/update_inventory.sh
 
-      # 5️⃣ Verify SSH connection
-      - name: Verify SSH Connection with Ansible
-        run: |
-          ansible all -i inventory.ini -m ping -u ec2-user -vvvv
+      # 6️⃣ Debug SSH agent (optional, for troubleshooting)
+      - name: Check SSH agent
+        run: ssh-add -l
 
-      # 6️⃣ Run all Playbooks sequentially
+      # 7️⃣ Verify connectivity to EC2
+      - name: Test Ansible connectivity
+        run: ansible all -i /mnt/c/Users/KDency/ansible-phase3-config/inventory.ini -m ping
+
+      # 8️⃣ Run all Ansible Playbooks
       - name: Run Ansible Playbooks
         run: |
-          ansible-playbook -i inventory.ini Playbooks/install_dependencies.yml -u ec2-user
-          ansible-playbook -i inventory.ini Playbooks/configure_nginx.yml -u ec2-user
-          ansible-playbook -i inventory.ini Playbooks/deploy_containers.yml -u ec2-user
-          ansible-playbook -i inventory.ini Playbooks/env_and_ssl.yml -u ec2-user
-          ansible-playbook -i inventory.ini Playbooks/rolling_update.yml -u ec2-user
+          ansible-playbook -i /mnt/c/Users/KDency/ansible-phase3-config/inventory.ini /mnt/c/Users/KDency/ansible-phase3-config/playbooks/install_dependencies.yml
+          ansible-playbook -i /mnt/c/Users/KDency/ansible-phase3-config/inventory.ini /mnt/c/Users/KDency/ansible-phase3-config/playbooks/configure_nginx.yml
+          ansible-playbook -i /mnt/c/Users/KDency/ansible-phase3-config/inventory.ini /mnt/c/Users/KDency/ansible-phase3-config/playbooks/deploy_containers.yml
+          ansible-playbook -i /mnt/c/Users/KDency/ansible-phase3-config/inventory.ini /mnt/c/Users/KDency/ansible-phase3-config/playbooks/env_and_ssl.yml
+          ansible-playbook -i /mnt/c/Users/KDency/ansible-phase3-config/inventory.ini /mnt/c/Users/KDency/ansible-phase3-config/playbooks/rolling_update.yml
