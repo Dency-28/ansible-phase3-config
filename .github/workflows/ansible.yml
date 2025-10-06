@@ -2,8 +2,6 @@ name: Deploy Fullstack App with Ansible
 
 on:
   workflow_dispatch:
-  repository_dispatch:
-    types: [trigger-ansible]
 
 jobs:
   ansible-deploy:
@@ -14,31 +12,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Setup SSH access to EC2
+      # 2️⃣ Start SSH agent and add key from GitHub Secret
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.DEPLOYER_NEW }}
 
-      # 3️⃣ Add EC2 host to known_hosts (avoid manual approval)
-      - name: Disable host key checking
-        run: |
-          echo "Host *" > ~/.ssh/config
-          echo "    StrictHostKeyChecking no" >> ~/.ssh/config
-          chmod 600 ~/.ssh/config
-
-      # 4️⃣ Install Ansible
+      # 3️⃣ Install Ansible
       - name: Install Ansible
         run: |
           sudo apt update -y
           sudo apt install -y ansible
 
-      # 5️⃣ Display EC2 connectivity check
-      - name: Verify SSH Connection
+      # 4️⃣ Test SSH connection using the agent
+      - name: Test SSH connection
         run: |
           ansible all -i inventory.ini -m ping
 
-      # 6️⃣ Run all Playbooks sequentially
+      # 5️⃣ Run Playbooks
       - name: Run Ansible Playbooks
         run: |
           ansible-playbook -i inventory.ini Playbooks/install_dependencies.yml
