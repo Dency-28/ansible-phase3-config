@@ -1,4 +1,4 @@
-- name: Set environment variables and SSL
+- name: Set environment variables and deploy SSL certificates
   hosts: all
   become: yes
   tasks:
@@ -10,12 +10,18 @@
 
     - name: Copy SSL certificate
       copy:
-        src: /etc/ssl/certs/cert.pem
+        src: files/cert.pem
         dest: /etc/ssl/certs/cert.pem
-        remote_src: yes
+        mode: '0644'
+
+    - name: Ensure /etc/ssl/private exists
+      file:
+        path: /etc/ssl/private
+        state: directory
+        mode: '0700'
 
     - name: Copy SSL key
       copy:
-        src: /etc/ssl/private/privkey.pem
+        src: files/privkey.pem
         dest: /etc/ssl/private/privkey.pem
-        remote_src: yes
+        mode: '0600'

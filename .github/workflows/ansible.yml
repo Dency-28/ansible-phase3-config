@@ -1,48 +1,48 @@
-name: Ansible-Deploy
+name: Deploy Fullstack App with Ansible
 
 on:
   workflow_dispatch:
+  repository_dispatch:
+    types: [trigger-ansible]
 
 jobs:
-  deploy:
+  ansible-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Phase 3 repo
-        uses: actions/checkout@v3
-        with:
-          path: phase3
+      # 1️⃣ Checkout the repo
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Checkout Phase 1 repo
-        uses: actions/checkout@v3
-        with:
-          repository: Dency-28/Tf-den
-          token: ${{ secrets.GH_TOKEN }}
-          path: phase1
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-
-      - name: Setup SSH Key
+      # 2️⃣ Setup SSH access to EC2
+      - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.DEPLOYER_NEW }}
 
- # 3️⃣ Install Ansible
+      # 3️⃣ Add EC2 host to known_hosts (avoid manual approval)
+      - name: Disable host key checking
+        run: |
+          echo "Host *" > ~/.ssh/config
+          echo "    StrictHostKeyChecking no" >> ~/.ssh/config
+          chmod 600 ~/.ssh/config
+
+      # 4️⃣ Install Ansible
       - name: Install Ansible
         run: |
-          sudo apt update
+          sudo apt update -y
           sudo apt install -y ansible
- 
-      - name: Run Playbooks
+
+      # 5️⃣ Display EC2 connectivity check
+      - name: Verify SSH Connection
         run: |
-          ansible-playbook Playbooks/configure_ngnix.yml -i inventory.ini 
-          ansible-playbook Playbooks/deploy_containers.yml -i inventory.ini 
-          ansible-playbook Playbooks/env_and_ssl.yml -i inventory.ini 
-          ansible-playbook Playbooks/install_dependencies.yml -i inventory.ini
-          ansible-playbook Playbooks/rolling_update.yml -i inventory.ini 
- 
+          ansible all -i inventory.ini -m ping
+
+      # 6️⃣ Run all Playbooks sequentially
+      - name: Run Ansible Playbooks
+        run: |
+          ansible-playbook -i inventory.ini Playbooks/install_dependencies.yml
+          ansible-playbook -i inventory.ini Playbooks/configure_nginx.yml
+          ansible-playbook -i inventory.ini Playbooks/deploy_containers.yml
+          ansible-playbook -i inventory.ini Playbooks/env_and_ssl.yml
+          ansible-playbook -i inventory.ini Playbooks/rolling_update.yml
