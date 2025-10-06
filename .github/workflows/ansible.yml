@@ -8,12 +8,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout the repo
+      # 1️⃣ Checkout code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Start SSH agent and add key from GitHub Secret
-      - name: Setup SSH
+      # 2️⃣ Start SSH agent and add key from secret
+      - name: Setup SSH Agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.DEPLOYER_NEW }}
@@ -24,16 +24,21 @@ jobs:
           sudo apt update -y
           sudo apt install -y ansible
 
-      # 4️⃣ Test SSH connection using the agent
-      - name: Test SSH connection
+      # 4️⃣ Debug: List SSH keys in agent
+      - name: List SSH keys in agent
         run: |
-          ansible all -i inventory.ini -m ping
+          ssh-add -l
 
-      # 5️⃣ Run Playbooks
+      # 5️⃣ Verify SSH connection
+      - name: Verify SSH Connection with Ansible
+        run: |
+          ansible all -i inventory.ini -m ping -u ec2-user -vvvv
+
+      # 6️⃣ Run all Playbooks sequentially
       - name: Run Ansible Playbooks
         run: |
-          ansible-playbook -i inventory.ini Playbooks/install_dependencies.yml
-          ansible-playbook -i inventory.ini Playbooks/configure_nginx.yml
-          ansible-playbook -i inventory.ini Playbooks/deploy_containers.yml
-          ansible-playbook -i inventory.ini Playbooks/env_and_ssl.yml
-          ansible-playbook -i inventory.ini Playbooks/rolling_update.yml
+          ansible-playbook -i inventory.ini Playbooks/install_dependencies.yml -u ec2-user
+          ansible-playbook -i inventory.ini Playbooks/configure_nginx.yml -u ec2-user
+          ansible-playbook -i inventory.ini Playbooks/deploy_containers.yml -u ec2-user
+          ansible-playbook -i inventory.ini Playbooks/env_and_ssl.yml -u ec2-user
+          ansible-playbook -i inventory.ini Playbooks/rolling_update.yml -u ec2-user
