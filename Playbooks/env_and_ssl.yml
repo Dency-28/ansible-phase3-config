@@ -2,42 +2,25 @@
 - name: Set environment variables and deploy SSL certificates
   hosts: all
   become: yes
-  vars:
-    cert_path: /tmp/cert.pem
-    key_path: /tmp/privkey.pem
 
   tasks:
-    # 0️⃣ Write cert.pem from environment variable
-    - name: Write cert.pem from secret
-      copy:
-        content: "{{ lookup('env', 'CERT_PEM') }}"
-        dest: "{{ cert_path }}"
-        mode: '0644'
-
-    # 1️⃣ Write privkey.pem from environment variable
-    - name: Write privkey.pem from secret
-      copy:
-        content: "{{ lookup('env', 'PRIVKEY_PEM') }}"
-        dest: "{{ key_path }}"
-        mode: '0600'
-
-    # 2️⃣ Set environment variables
+    # 1️⃣ Set environment variables
     - name: Set environment variables
       lineinfile:
         path: /etc/environment
         line: 'APP_ENV=production'
         create: yes
 
-    # 3️⃣ Copy SSL certificate to target host
+    # 2️⃣ Copy SSL certificate from GitHub Secret
     - name: Copy SSL certificate to /etc/ssl/certs
       copy:
-        src: "{{ cert_path }}"
+        content: "{{ lookup('env', 'CERT_PEM') }}"
         dest: /etc/ssl/certs/cert.pem
         mode: '0644'
         owner: root
         group: root
 
-    # 4️⃣ Ensure /etc/ssl/private directory exists
+    # 3️⃣ Ensure /etc/ssl/private directory exists
     - name: Ensure /etc/ssl/private exists
       file:
         path: /etc/ssl/private
@@ -46,20 +29,11 @@
         owner: root
         group: root
 
-    # 5️⃣ Copy SSL private key to target host
+    # 4️⃣ Copy SSL private key from GitHub Secret
     - name: Copy SSL private key to /etc/ssl/private
       copy:
-        src: "{{ key_path }}"
+        content: "{{ lookup('env', 'PRIVKEY_PEM') }}"
         dest: /etc/ssl/private/privkey.pem
         mode: '0600'
         owner: root
         group: root
-
-    # 6️⃣ Clean up temporary files on controller
-    - name: Remove temporary SSL files from controller
-      file:
-        path: "{{ item }}"
-        state: absent
-      loop:
-        - "{{ cert_path }}"
-        - "{{ key_path }}"
