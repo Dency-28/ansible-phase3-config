@@ -1,20 +1,19 @@
 ---
-- name: Set environment variables and handle SSL certificates
+- name: Set environment variables and deploy SSL certificates
   hosts: all
   become: yes
 
   tasks:
-    - name: Set environment variable
+    - name: Set environment variables
       lineinfile:
         path: /etc/environment
         line: 'APP_ENV=production'
         create: yes
 
-    - name: Copy SSL certificate
+    - name: Copy SSL certificate from controller
       copy:
-        src: /etc/ssl/certs/cert.pem
+        src: Playbooks/files/cert.pem
         dest: /etc/ssl/certs/cert.pem
-        remote_src: yes
         mode: '0644'
 
     - name: Ensure /etc/ssl/private exists
@@ -23,9 +22,8 @@
         state: directory
         mode: '0700'
 
-    - name: Copy SSL key
+    - name: Copy SSL private key from controller
       copy:
-        src: /etc/ssl/private/privkey.pem
+        src: Playbooks/files/privkey.pem
         dest: /etc/ssl/private/privkey.pem
-        remote_src: yes
         mode: '0600'
