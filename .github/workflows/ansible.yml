@@ -1,4 +1,4 @@
-name: Ansible
+name: 🚀 Deploy Fullstack App via Ansible (Auto from Terraform)
 
 on:
   workflow_dispatch:
