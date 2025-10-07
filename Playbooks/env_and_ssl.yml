@@ -12,7 +12,7 @@
 
     - name: Copy SSL certificate from controller
       copy:
-        src: ../Playbooks/files/cert.pem
+        src: "{{ playbook_dir }}/files/cert.pem"
         dest: /etc/ssl/certs/cert.pem
         mode: '0644'
 
@@ -24,6 +24,6 @@
 
     - name: Copy SSL private key from controller
       copy:
-        src: ../Playbooks/files/privkey.pem
+        src: "{{ playbook_dir }}/files/privkey.pem"
         dest: /etc/ssl/private/privkey.pem
         mode: '0600'
