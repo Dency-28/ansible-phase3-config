@@ -4,26 +4,36 @@
   become: yes
 
   tasks:
+    # 1️⃣ Set environment variables
     - name: Set environment variables
       lineinfile:
         path: /etc/environment
         line: 'APP_ENV=production'
         create: yes
 
+    # 2️⃣ Copy SSL certificate from Ansible controller
     - name: Copy SSL certificate from controller
       copy:
         src: "{{ playbook_dir }}/files/cert.pem"
         dest: /etc/ssl/certs/cert.pem
         mode: '0644'
+        owner: root
+        group: root
 
+    # 3️⃣ Ensure /etc/ssl/private directory exists
     - name: Ensure /etc/ssl/private exists
       file:
         path: /etc/ssl/private
         state: directory
         mode: '0700'
+        owner: root
+        group: root
 
+    # 4️⃣ Copy SSL private key from Ansible controller
     - name: Copy SSL private key from controller
       copy:
         src: "{{ playbook_dir }}/files/privkey.pem"
         dest: /etc/ssl/private/privkey.pem
         mode: '0600'
+        owner: root
+        group: root
