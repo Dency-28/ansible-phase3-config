@@ -1,4 +1,4 @@
-name: Ansible 
+name: Ansible Deploy
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout Ansible repo
+      # 1️⃣ Checkout current repo (Ansible)
       - name: Checkout Ansible repo
         uses: actions/checkout@v4
 
@@ -27,28 +27,21 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOYER_NEW }}" > ~/.ssh/deployer.pem
           chmod 600 ~/.ssh/deployer.pem
-
-      # 4️⃣ Disable strict host key checking
-      - name: Disable host key checking
-        run: |
           echo -e "Host *\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
-          chmod 600 ~/.ssh/config
 
-      # 5️⃣ Install Terraform & updated Ansible
+      # 4️⃣ Install Terraform & Ansible
       - name: Install Terraform & Ansible
         run: |
           sudo apt-get update -y
           sudo apt-get install -y unzip curl software-properties-common
-          # Install latest Ansible
           sudo apt-add-repository --yes --update ppa:ansible/ansible
           sudo apt-get install -y ansible
-          # Install Terraform
           curl -fsSL https://releases.hashicorp.com/terraform/1.9.8/terraform_1.9.8_linux_amd64.zip -o terraform.zip
-          sudo unzip -o terraform.zip -d /usr/local/bin/   # ✅ -o forces overwrite
+          sudo unzip -o terraform.zip -d /usr/local/bin/
 
-      # 6️⃣ Initialize Terraform and fetch EC2 IP dynamically
-      - name: Get EC2 Public IP from Terraform
-        id: tfoutput
+      # 5️⃣ Initialize Terraform & get EC2 IP
+      - name: Terraform Apply & Fetch IP
+        id: tf
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -56,32 +49,26 @@ jobs:
         run: |
           cd Tf-den/terraform_infra
           terraform init -input=false
-          terraform plan -input=false
           terraform apply -auto-approve
           terraform output -raw ec2_public_ip > ec2_ip.txt
           echo "EC2_IP=$(cat ec2_ip.txt)" >> $GITHUB_ENV
           echo "✅ Terraform EC2 IP: $(cat ec2_ip.txt)"
 
-      # 7️⃣ Print IP for debug
-      - name: Print EC2 IP
-        run: echo "🌐 EC2 IP is $EC2_IP"
-
-      # 8️⃣ Generate dynamic Ansible inventory
-      - name: Generate dynamic inventory
+      # 6️⃣ Create inventory dynamically
+      - name: Generate Inventory
         run: |
           echo "[all]" > inventory.ini
           echo "ec2-instance ansible_host=$EC2_IP ansible_user=ec2-user ansible_ssh_private_key_file=~/.ssh/deployer.pem" >> inventory.ini
-          echo "" >> inventory.ini
           echo "[all:vars]" >> inventory.ini
           echo "ansible_python_interpreter=/usr/bin/python3" >> inventory.ini
-          echo "✅ Inventory created:"
           cat inventory.ini
 
-      # 9️⃣ Test Ansible connectivity
-      - name: Test Ansible connectivity
-        run: ansible all -i inventory.ini -m ping
+      # 7️⃣ Test Ansible connection
+      - name: Test SSH Connection
+        run: |
+          ansible all -i inventory.ini -m ping
 
-      # 🔟 Run Ansible Playbooks sequentially
+      # 8️⃣ Run Playbooks sequentially
       - name: Run Ansible Playbooks
         run: |
           ansible-playbook -i inventory.ini Playbooks/install_dependencies.yml
