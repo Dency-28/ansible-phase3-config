@@ -71,8 +71,11 @@ jobs:
         run: |
           ansible all -i inventory.ini -m ping
 
-      # 8️⃣ Run Playbooks sequentially
+      # 8️⃣ Run Ansible Playbooks
       - name: Run Ansible Playbooks
+        env:
+          CERT_PEM: ${{ secrets.CERT_PEM }}
+          PRIVKEY_PEM: ${{ secrets.PRIVKEY_PEM }}
         run: |
           ansible-playbook -i inventory.ini Playbooks/install_dependencies.yml
           ansible-playbook -i inventory.ini Playbooks/configure_nginx.yml
