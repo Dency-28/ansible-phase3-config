@@ -10,48 +10,47 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout Ansible repository
+      # 1️⃣ Checkout Ansible repo
       - name: Checkout Ansible repo
         uses: actions/checkout@v4
 
-      # 2️⃣ Checkout Terraform repository
+      # 2️⃣ Checkout Terraform repo
       - name: Checkout Terraform repo
         uses: actions/checkout@v4
         with:
           repository: Dency-28/Tf-den
-          path: Tf-den  # ✅ Capital T to match your folder
+          path: Tf-den  # Capital T to match folder
 
-      # 3️⃣ Setup SSH for EC2
+      # 3️⃣ Setup SSH key for Ansible
       - name: Setup SSH key
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.DEPLOYER_NEW }}
-
-      - name: Disable host key checking
         run: |
           mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOYER_NEW }}" > ~/.ssh/deployer.pem
+          chmod 600 ~/.ssh/deployer.pem
+
+      # 4️⃣ Disable strict host key checking
+      - name: Disable host key checking
+        run: |
           echo -e "Host *\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
           chmod 600 ~/.ssh/config
 
-      # 4️⃣ Install Terraform & Ansible
+      # 5️⃣ Install Terraform and Ansible
       - name: Install Terraform & Ansible
         run: |
           sudo apt-get update -y
           sudo apt-get install -y ansible unzip curl
           curl -fsSL https://releases.hashicorp.com/terraform/1.9.8/terraform_1.9.8_linux_amd64.zip -o terraform.zip
           sudo unzip -o terraform.zip -d /usr/local/bin/
-          terraform -version
-          ansible --version
 
-      # 5️⃣ Set AWS credentials from GitHub Secrets
-      - name: Set AWS credentials
+      # 6️⃣ Export AWS credentials for Terraform
+      - name: Export AWS Credentials
         run: |
           echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
           echo "AWS_DEFAULT_REGION=us-east-1" >> $GITHUB_ENV
 
-      # 6️⃣ Deploy Terraform infra & get EC2 IP
-      - name: Deploy Terraform infra & get EC2 IP
+      # 7️⃣ Initialize Terraform and get EC2 IP
+      - name: Get EC2 Public IP from Terraform
         id: tfoutput
         run: |
           cd Tf-den/terraform_infra
@@ -61,11 +60,11 @@ jobs:
           echo "EC2_IP=$(cat ec2_ip.txt)" >> $GITHUB_ENV
           echo "✅ Terraform EC2 IP: $(cat ec2_ip.txt)"
 
-      # 7️⃣ Print EC2 IP for debug
+      # 8️⃣ Print EC2 IP for debug
       - name: Print EC2 IP
         run: echo "🌐 EC2 IP is $EC2_IP"
 
-      # 8️⃣ Generate dynamic Ansible inventory
+      # 9️⃣ Generate dynamic Ansible inventory
       - name: Generate dynamic inventory
         run: |
           echo "[all]" > inventory.ini
@@ -76,11 +75,11 @@ jobs:
           echo "✅ Inventory created:"
           cat inventory.ini
 
-      # 9️⃣ Test Ansible connectivity
+      # 🔟 Test Ansible connectivity
       - name: Test Ansible connectivity
         run: ansible all -i inventory.ini -m ping
 
-      # 🔟 Run Ansible Playbooks in sequence
+      # 1️⃣1️⃣ Run all Ansible Playbooks
       - name: Run Ansible Playbooks
         run: |
           ansible-playbook -i inventory.ini Playbooks/install_dependencies.yml
