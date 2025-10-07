@@ -11,10 +11,10 @@
         line: 'APP_ENV=production'
         create: yes
 
-    # 2️⃣ Copy SSL certificate from Ansible controller
+    # 2️⃣ Copy SSL certificate using lookup
     - name: Copy SSL certificate from controller
       copy:
-        src: "{{ playbook_dir }}/../files/cert.pem"   # ✅ Adjusted for GitHub Actions path
+        content: "{{ lookup('file', 'Playbooks/files/cert.pem') }}"
         dest: /etc/ssl/certs/cert.pem
         mode: '0644'
         owner: root
@@ -29,10 +29,10 @@
         owner: root
         group: root
 
-    # 4️⃣ Copy SSL private key from Ansible controller
+    # 4️⃣ Copy SSL private key using lookup
     - name: Copy SSL private key from controller
       copy:
-        src: "{{ playbook_dir }}/../files/privkey.pem"   # ✅ Adjusted for GitHub Actions path
+        content: "{{ lookup('file', 'Playbooks/files/privkey.pem') }}"
         dest: /etc/ssl/private/privkey.pem
         mode: '0600'
         owner: root
