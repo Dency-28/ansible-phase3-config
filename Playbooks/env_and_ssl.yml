@@ -1,19 +1,31 @@
-- name: Copy SSL certificate
-  copy:
-    src: /etc/ssl/certs/cert.pem
-    dest: /etc/ssl/certs/cert.pem
-    remote_src: yes
-    mode: '0644'
+---
+- name: Set environment variables and handle SSL certificates
+  hosts: all
+  become: yes
 
-- name: Ensure /etc/ssl/private exists
-  file:
-    path: /etc/ssl/private
-    state: directory
-    mode: '0700'
+  tasks:
+    - name: Set environment variable
+      lineinfile:
+        path: /etc/environment
+        line: 'APP_ENV=production'
+        create: yes
 
-- name: Copy SSL key
-  copy:
-    src: /etc/ssl/private/privkey.pem
-    dest: /etc/ssl/private/privkey.pem
-    remote_src: yes
-    mode: '0600'
+    - name: Copy SSL certificate
+      copy:
+        src: /etc/ssl/certs/cert.pem
+        dest: /etc/ssl/certs/cert.pem
+        remote_src: yes
+        mode: '0644'
+
+    - name: Ensure /etc/ssl/private exists
+      file:
+        path: /etc/ssl/private
+        state: directory
+        mode: '0700'
+
+    - name: Copy SSL key
+      copy:
+        src: /etc/ssl/private/privkey.pem
+        dest: /etc/ssl/private/privkey.pem
+        remote_src: yes
+        mode: '0600'
