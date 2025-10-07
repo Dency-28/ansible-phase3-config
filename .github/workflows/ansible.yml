@@ -10,17 +10,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout both Ansible and Terraform repositories
+      # 1️⃣ Checkout Ansible repo
       - name: Checkout Ansible repo
         uses: actions/checkout@v4
 
+      # 2️⃣ Checkout Terraform repo
       - name: Checkout Terraform repo
         uses: actions/checkout@v4
         with:
           repository: Dency-28/Tf-den
-          path: Tf-den  # ✅ Capital T to match your folder
+          path: Tf-den  # ✅ Capital T to match folder
 
-      # 2️⃣ Setup SSH for EC2
+      # 3️⃣ Setup SSH for EC2
       - name: Setup SSH key
         uses: webfactory/ssh-agent@v0.9.0
         with:
@@ -32,15 +33,17 @@ jobs:
           echo -e "Host *\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
           chmod 600 ~/.ssh/config
 
-      # 3️⃣ Install Terraform and Ansible
-      - name: Install Terraform & Ansible
+      # 4️⃣ Install Ansible and Terraform (non-interactive)
+      - name: Install Ansible & Terraform
         run: |
           sudo apt-get update -y
           sudo apt-get install -y ansible unzip curl
           curl -fsSL https://releases.hashicorp.com/terraform/1.9.8/terraform_1.9.8_linux_amd64.zip -o terraform.zip
-          sudo unzip terraform.zip -d /usr/local/bin/
+          sudo unzip -o terraform.zip -d /usr/local/bin/
+          terraform -version
+          ansible --version
 
-      # 4️⃣ Initialize Terraform and fetch EC2 IP dynamically
+      # 5️⃣ Initialize Terraform and fetch EC2 IP
       - name: Get EC2 Public IP from Terraform
         id: tfoutput
         run: |
@@ -50,11 +53,11 @@ jobs:
           echo "EC2_IP=$(cat ec2_ip.txt)" >> $GITHUB_ENV
           echo "✅ Terraform EC2 IP: $(cat ec2_ip.txt)"
 
-      # 5️⃣ Print IP for debug
+      # 6️⃣ Print IP for debug
       - name: Print EC2 IP
         run: echo "🌐 EC2 IP is $EC2_IP"
 
-      # 6️⃣ Generate dynamic Ansible inventory
+      # 7️⃣ Generate dynamic Ansible inventory
       - name: Generate dynamic inventory
         run: |
           echo "[all]" > inventory.ini
@@ -62,15 +65,14 @@ jobs:
           echo "" >> inventory.ini
           echo "[all:vars]" >> inventory.ini
           echo "ansible_python_interpreter=/usr/bin/python3" >> inventory.ini
-
           echo "✅ Inventory created:"
           cat inventory.ini
 
-      # 7️⃣ Test SSH connectivity
+      # 8️⃣ Test SSH connectivity
       - name: Test Ansible connectivity
         run: ansible all -i inventory.ini -m ping
 
-      # 8️⃣ Run Ansible Playbooks in sequence (Corrected folder name: Playbooks)
+      # 9️⃣ Run Ansible Playbooks in sequence
       - name: Run Ansible Playbooks
         run: |
           ansible-playbook -i inventory.ini Playbooks/install_dependencies.yml
