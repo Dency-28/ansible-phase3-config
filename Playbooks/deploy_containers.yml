@@ -33,6 +33,11 @@
             append: yes
       when: docker_check.rc != 0
 
+    - name: Create app network
+      docker_network:
+        name: app-network
+        state: present
+
     - name: Run backend container
       docker_container:
         name: backend
@@ -41,6 +46,8 @@
         restart_policy: always
         published_ports:
           - "8080:8080"
+        networks:
+          - name: app-network
 
     - name: Run frontend container
       docker_container:
@@ -50,3 +57,5 @@
         restart_policy: always
         published_ports:
           - "5000:80"
+        networks:
+          - name: app-network
