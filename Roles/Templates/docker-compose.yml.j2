@@ -4,7 +4,7 @@ services:
   node_exporter:
     image: prom/node-exporter:latest
     container_name: node_exporter
-    network_mode: host        # 👈 runs directly on host
+    network_mode: host
     pid: host
     restart: unless-stopped
 
@@ -12,21 +12,21 @@ services:
     image: prom/prometheus:latest
     container_name: prometheus
     network_mode: host
-    ports:
-      - "9090:9090"
-        # 👈 also use host network
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - node_exporter
     restart: unless-stopped
 
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
-    network_mode: host        # 👈 also use host network
+    network_mode: host
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: "{{ grafana_admin_password }}"
+      GF_SECURITY_ADMIN_PASSWORD: "ChangeMe123!"
       GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
-    
+    depends_on:
+      - prometheus
     restart: unless-stopped
