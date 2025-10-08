@@ -56,14 +56,19 @@
         state: directory
         mode: '0755'
 
-    # 5️⃣ Create Prometheus config
+    # 5️⃣ Create Prometheus config (scrapes itself + node_exporter)
     - name: Create Prometheus configuration
       copy:
         dest: "{{ prometheus_dir }}/prometheus.yml"
         content: |
           global:
             scrape_interval: 5s
+
           scrape_configs:
+            - job_name: 'prometheus'
+              static_configs:
+                - targets: ['localhost:9090']
+
             - job_name: 'node_exporter'
               static_configs:
                 - targets: ['localhost:9100']
