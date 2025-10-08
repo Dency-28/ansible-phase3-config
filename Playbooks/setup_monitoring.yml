@@ -1,29 +1,23 @@
 ---
 - name: Setup Monitoring Stack (Node Exporter + Prometheus + Grafana)
-  hosts: web
+  hosts: all
   become: yes
   vars:
     prometheus_dir: /opt/monitoring
     grafana_admin_password: "ChangeMe123!"
   tasks:
 
-    - name: Install dependencies
-      apt:
-        name:
-          - ca-certificates
-          - curl
-          - gnupg
-          - lsb-release
-        state: present
-        update_cache: yes
+    - name: Ensure apt package index is updated
+      raw: apt-get update -y
+      register: update_result
+      changed_when: "'0 upgraded' not in update_result.stdout"
+      ignore_errors: yes
 
-    - name: Install Docker Legacy and Docker Compose
-      apt:
-        name:
-          - docker.io
-          - docker-compose
-        state: present
-        update_cache: yes
+    - name: Install dependencies
+      raw: apt-get install -y ca-certificates curl gnupg lsb-release docker.io docker-compose
+      register: install_result
+      changed_when: "'installed' in install_result.stdout or 'newly installed' in install_result.stdout"
+      ignore_errors: yes
 
     - name: Enable and start Docker service
       systemd:
@@ -64,9 +58,8 @@
     - name: Remove existing monitoring containers if any
       command: docker-compose down --remove-orphans
       args:
-        chdir: /opt/monitoring
+        chdir: "{{ prometheus_dir }}"
       ignore_errors: yes
-
 
     - name: Start monitoring containers
       shell: |
